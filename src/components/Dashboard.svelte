@@ -4,8 +4,9 @@
 
     const imageNameMap = {
         'mmh352/tt284-block1:21j.1': 'TT284 21J B1',
-        'mmh352/tm129-robotics:21j.0-b2': 'TM129 Robotics 21J',
         'mmh352/tt284-block1:21j.2': 'TT284 21J B1',
+        'mmh352/tt284-block2:21j.3-b0': 'TT284 21J B2',
+        'mmh352/tm129-robotics:21j.0-b2': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b3': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b4': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b5': 'TM129 Robotics 21J',
