@@ -26,11 +26,8 @@
                     }
                 },
                 scales: {
-                    yAxis: {
-                        display: true,
-                        min: 0,
-                    },
-                    xAxis: {
+                    x: {
+                        stacked: true,
                         grid: {
                             display: false,
                         },
