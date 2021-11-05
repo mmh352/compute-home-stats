@@ -214,6 +214,11 @@
                     </svg>
                 </button>
             </li>
+            <li>
+                <select class="px-2 py-1">
+                    <option value="session_count">Session Counts</option>
+                </select>
+            </li>
         </ul>
     </nav>
     <div class="flex-auto">
