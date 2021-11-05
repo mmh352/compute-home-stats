@@ -183,7 +183,7 @@
     load();
 </script>
 
-<div class="w-full h-full flex flex-col">
+<div class="w-full h-full flex flex-col overflow-hidden">
     <nav class="flex-0 mb-2">
         <ul class="flex flex-row items-center">
             <li>
@@ -221,7 +221,7 @@
             </li>
         </ul>
     </nav>
-    <div class="flex-auto">
+    <div class="flex-auto overflow-hidden">
         <Chart labels={$labels} datasets={$datasets}/>
     </div>
 </div>

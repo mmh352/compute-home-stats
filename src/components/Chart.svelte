@@ -53,4 +53,4 @@
     });
 </script>
 
-<canvas bind:this={canvas} class="max-h-full max-w-full"></canvas>
+<canvas bind:this={canvas} class="h-full w-full max-h-full max-w-full"></canvas>
