@@ -35,6 +35,7 @@
     const data = writable([]);
     const scale = writable('year');
     const scaleFilter = writable('');
+    const metric = writable('session-counts');
 
     const labels = derived(scale, (scale) => {
         if (scale === 'year') {
@@ -87,19 +88,30 @@
         }
     });
 
-    const datasets = derived([data, scale, scaleFilter], ([data, scale, scaleFilter]) => {
+    const datasets = derived([data, scale, scaleFilter, metric], ([data, scale, scaleFilter, metric]) => {
         if (scale === 'year') {
             const groups = data.map((entry) => { return imageNameMap[entry.image] }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
             groups.sort();
             const datasets = groups.map((group: string, idx: number) => {
                 const datapoints = [];
                 for (let month = 1; month <= 12; month++) {
-                    datapoints.push(data.reduce((acc, cur) => {
-                        if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group && cur.continued === false) {
-                            acc = acc + 1;
-                        }
-                        return acc;
-                    }, 0));
+                    if (metric === 'session-counts') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group && cur.continued === false) {
+                                acc = acc + 1;
+                            }
+                            return acc;
+                        }, 0));
+                    } else if (metric === 'unique-users') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
+                                acc.push(cur.user);
+                            }
+                            return acc;
+                        }, []).length);
+                    } else {
+                        datapoints.push(0);
+                    }
                 }
                 return {
                     label: group,
@@ -116,12 +128,23 @@
             const datasets = groups.map((group: string, idx: number) => {
                 const datapoints = [];
                 for (let day = 1; day <= 31; day++) {
-                    datapoints.push(data.reduce((acc, cur) => {
-                        if (filterYear === cur.year && filterMonth == cur.month && cur.day === day && imageNameMap[cur.image] === group && cur.continued === false) {
-                            acc = acc + 1;
-                        }
-                        return acc;
-                    }, 0));
+                    if (metric === 'session-counts') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (filterYear === cur.year && filterMonth == cur.month && cur.day === day && imageNameMap[cur.image] === group && cur.continued === false) {
+                                acc = acc + 1;
+                            }
+                            return acc;
+                        }, 0));
+                    } else if (metric === 'unique-users') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (filterYear === cur.year && filterMonth === cur.month && cur.day === day && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
+                                acc.push(cur.user);
+                            }
+                            return acc;
+                        }, []).length);
+                    } else {
+                        datapoints.push(0);
+                    }
                 }
                 return {
                     label: group,
@@ -140,12 +163,23 @@
             const datasets = groups.map((group: string, idx: number) => {
                 const datapoints = [];
                 for (let hour = 0; hour <= 23; hour++) {
-                    datapoints.push(data.reduce((acc, cur) => {
-                        if (filterYear === cur.year && filterMonth == cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group) {
-                            acc = acc + 1;
-                        }
-                        return acc;
-                    }, 0));
+                    if (metric === 'session-counts') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (filterYear === cur.year && filterMonth == cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group) {
+                                acc = acc + 1;
+                            }
+                            return acc;
+                        }, 0));
+                    } else if (metric === 'unique-users') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (filterYear === cur.year && filterMonth === cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
+                                acc.push(cur.user);
+                            }
+                            return acc;
+                        }, []).length);
+                    } else {
+                        datapoints.push(0);
+                    }
                 }
                 return {
                     label: group,
@@ -215,8 +249,9 @@
                 </button>
             </li>
             <li>
-                <select class="px-2 py-1">
-                    <option value="session_count">Session Counts</option>
+                <select bind:value={$metric} class="px-2 py-1">
+                    <option value="session-counts">Session Counts</option>
+                    <option value="unique-users">Unique Users</option>
                 </select>
             </li>
         </ul>
