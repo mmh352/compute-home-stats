@@ -109,6 +109,42 @@
                             }
                             return acc;
                         }, []).length);
+                    } else if (metric === 'median-session-lengths') {
+                        const tmp = {}
+                        const lengths = data.reduce((acc, cur) => {
+                            if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group) {
+                                if (!cur.continued) {
+                                    if (tmp[cur.user]) {
+                                        acc.push(tmp[cur.user] + cur.duration);
+                                        delete tmp[cur.user];
+                                    } else {
+                                        acc.push(cur.duration);
+                                    }
+                                } else {
+                                    if (tmp[cur.user]) {
+                                        tmp[cur.user] = tmp[cur.user] + cur.duration;
+                                    } else {
+                                        tmp[cur.user] = cur.duration;
+                                    }
+                                }
+                            }
+                            return acc;
+                        }, []);
+                        if (Object.values(tmp).length > 0) {
+                            for (const value in Object.values(tmp)) {
+                                lengths.push(value);
+                            }
+                        }
+                        if (lengths.length > 0) {
+                            lengths.sort((a: number, b: number) => { return a - b; });
+                            if (lengths.length % 2 === 0) {
+                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
+                            } else {
+                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
+                            }
+                        } else {
+                            datapoints.push(0);
+                        }
                     } else {
                         datapoints.push(0);
                     }
@@ -142,6 +178,42 @@
                             }
                             return acc;
                         }, []).length);
+                    } else if (metric === 'median-session-lengths') {
+                        const tmp = {}
+                        const lengths = data.reduce((acc, cur) => {
+                            if (filterYear === cur.year && filterMonth === cur.month && cur.day === day && imageNameMap[cur.image] === group) {
+                                if (!cur.continued) {
+                                    if (tmp[cur.user]) {
+                                        acc.push(tmp[cur.user] + cur.duration);
+                                        delete tmp[cur.user];
+                                    } else {
+                                        acc.push(cur.duration);
+                                    }
+                                } else {
+                                    if (tmp[cur.user]) {
+                                        tmp[cur.user] = tmp[cur.user] + cur.duration;
+                                    } else {
+                                        tmp[cur.user] = cur.duration;
+                                    }
+                                }
+                            }
+                            return acc;
+                        }, []);
+                        if (Object.values(tmp).length > 0) {
+                            for (const value in Object.values(tmp)) {
+                                lengths.push(value);
+                            }
+                        }
+                        if (lengths.length > 0) {
+                            lengths.sort((a: number, b: number) => { return a - b; });
+                            if (lengths.length % 2 === 0) {
+                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
+                            } else {
+                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
+                            }
+                        } else {
+                            datapoints.push(0);
+                        }
                     } else {
                         datapoints.push(0);
                     }
@@ -177,6 +249,23 @@
                             }
                             return acc;
                         }, []).length);
+                    } else if (metric === 'median-session-lengths') {
+                        const lengths = data.reduce((acc, cur) => {
+                            if (filterYear === cur.year && filterMonth === cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group) {
+                                acc.push(cur.duration);
+                            }
+                            return acc;
+                        }, []);
+                        if (lengths.length > 0) {
+                            lengths.sort((a: number, b: number) => { return a - b; });
+                            if (lengths.length % 2 === 0) {
+                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
+                            } else {
+                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
+                            }
+                        } else {
+                            datapoints.push(0);
+                        }
                     } else {
                         datapoints.push(0);
                     }
@@ -252,6 +341,7 @@
                 <select bind:value={$metric} class="px-2 py-1">
                     <option value="session-counts">Session Counts</option>
                     <option value="unique-users">Unique Users</option>
+                    <option value="median-session-lengths">Median Session Lengths (minutes)</option>
                 </select>
             </li>
         </ul>
