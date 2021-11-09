@@ -316,7 +316,6 @@
             scale.set('day');
             scaleFilter.set(newFilter);
         }
-        console.log(ev.detail.index);
     }
 
     load();
