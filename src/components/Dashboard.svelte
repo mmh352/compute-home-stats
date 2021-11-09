@@ -5,7 +5,9 @@
     const imageNameMap = {
         'mmh352/tt284-block1:21j.1': 'TT284 21J B1',
         'mmh352/tt284-block1:21j.2': 'TT284 21J B1',
+        'mmh352/tt284-block1:21j.3': 'TT284 21J B1',
         'mmh352/tt284-block2:21j.3-b0': 'TT284 21J B2',
+        'mmh352/tt284-block2:21j.3': 'TT284 21J B2',
         'mmh352/tm129-robotics:21j.0-b2': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b3': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b4': 'TM129 Robotics 21J',
@@ -303,6 +305,20 @@
         data.set(await response.json());
     }
 
+    function chartClick(ev) {
+        if (get(scale) === 'year') {
+            const newFilter = get(scaleFilter) + '.' + (ev.detail.index + 1);
+            scale.set('month');
+            scaleFilter.set(newFilter);
+
+        } else if (get(scale) === 'month') {
+            const newFilter = get(scaleFilter) + '.' + (ev.detail.index + 1);
+            scale.set('day');
+            scaleFilter.set(newFilter);
+        }
+        console.log(ev.detail.index);
+    }
+
     load();
 </script>
 
@@ -347,6 +363,6 @@
         </ul>
     </nav>
     <div class="flex-auto overflow-hidden">
-        <Chart labels={$labels} datasets={$datasets}/>
+        <Chart labels={$labels} datasets={$datasets} on:click={chartClick} />
     </div>
 </div>

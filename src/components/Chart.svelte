@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { Chart, registerables } from 'chart.js';
 
     Chart.register(...registerables);
@@ -8,6 +8,7 @@
     export let datasets;
     let canvas: HTMLCanvasElement;
     let chart: Chart;
+	const dispatch = createEventDispatcher();
 
     onMount(() => {
         chart = new Chart(canvas.getContext('2d'), {
@@ -36,6 +37,11 @@
                 interaction: {
                     mode: 'index',
                 },
+                onClick(ev, active) {
+                    if (active.length > 0) {
+                        dispatch('click', { index: active[0].index });
+                    }
+                }
             }
         });
     });
