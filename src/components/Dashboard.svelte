@@ -13,6 +13,8 @@
         'mmh352/tm129-robotics:21j.0-b4': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b5': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b6': 'TM129 Robotics 21J',
+        'mmh352/tm129-robotics:21j.0': 'TM129 Robotics 21J',
+        'mmh352/s397-21j:latest': 'S397 21J',
     }
     const colours = [
         '#0e56a7',
@@ -92,7 +94,12 @@
 
     const datasets = derived([data, scale, scaleFilter, metric], ([data, scale, scaleFilter, metric]) => {
         if (scale === 'year') {
-            const groups = data.map((entry) => { return imageNameMap[entry.image] }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            const groups = data.map((entry) => {
+                if (!imageNameMap[entry.image]) {
+                    console.error('Missing image ' + entry.image);
+                }
+                return imageNameMap[entry.image]
+            }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
             groups.sort();
             const datasets = groups.map((group: string, idx: number) => {
                 const datapoints = [];
