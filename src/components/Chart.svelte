@@ -33,6 +33,9 @@
                             display: false,
                         },
                     },
+                    y: {
+                        stacked: true,
+                    },
                 },
                 interaction: {
                     mode: 'index',
