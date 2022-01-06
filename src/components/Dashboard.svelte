@@ -41,8 +41,19 @@
     const scaleFilter = writable('');
     const metric = writable('session-counts');
 
-    const labels = derived(scale, (scale) => {
-        if (scale === 'year') {
+    const labels = derived([data, scale], ([data, scale]) => {
+        if (scale === 'everything') {
+            const years = data.reduce((acc, cur) => {
+                if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
+                    acc.push({value: cur.year, label: cur.year.toString()});
+                }
+                return acc;
+            }, []);
+            years.sort((a, b) => {
+                return a.value - b.value;
+            });
+            return years.map((year) => { return year.label; });
+        } else if (scale === 'year') {
             return ['January', 'Feburary', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         } else if (scale === 'month') {
             return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
@@ -96,13 +107,89 @@
     });
 
     const datasets = derived([data, scale, scaleFilter, metric], ([data, scale, scaleFilter, metric]) => {
-        if (scale === 'year') {
+        if (scale === 'everything') {
             const groups = data.map((entry) => {
                 if (!imageNameMap[entry.image]) {
                     console.error('Missing image ' + entry.image);
                 }
-                return imageNameMap[entry.image]
+                return imageNameMap[entry.image];
             }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            groups.sort();
+            const years = data.reduce((acc, cur) => {
+                if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
+                    acc.push({value: cur.year, label: cur.year.toString()});
+                }
+                return acc;
+            }, []);
+            years.sort((a, b) => {
+                return a.value - b.value;
+            });
+            const datasets = groups.map((group: string, idx: number) => {
+                const datapoints = [];
+                for (let year of years) {
+                    if (metric === 'session-counts') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (year.value === cur.year && imageNameMap[cur.image] === group && cur.continued === false) {
+                                acc = acc + 1;
+                            }
+                            return acc;
+                        }, 0));
+                    } else if (metric === 'unique-users') {
+                        datapoints.push(data.reduce((acc, cur) => {
+                            if (year.value === cur.year && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
+                                acc.push(cur.user);
+                            }
+                            return acc;
+                        }, []).length);
+                    } else if (metric === 'median-session-lengths') {
+                        const tmp = {}
+                        const lengths = data.reduce((acc, cur) => {
+                            if (year.value === cur.year && imageNameMap[cur.image] === group) {
+                                if (!cur.continued) {
+                                    if (tmp[cur.user]) {
+                                        acc.push(tmp[cur.user] + cur.duration);
+                                        delete tmp[cur.user];
+                                    } else {
+                                        acc.push(cur.duration);
+                                    }
+                                } else {
+                                    if (tmp[cur.user]) {
+                                        tmp[cur.user] = tmp[cur.user] + cur.duration;
+                                    } else {
+                                        tmp[cur.user] = cur.duration;
+                                    }
+                                }
+                            }
+                            return acc;
+                        }, []);
+                        if (Object.values(tmp).length > 0) {
+                            for (const value in Object.values(tmp)) {
+                                lengths.push(value);
+                            }
+                        }
+                        if (lengths.length > 0) {
+                            lengths.sort((a: number, b: number) => { return a - b; });
+                            if (lengths.length % 2 === 0) {
+                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
+                            } else {
+                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
+                            }
+                        } else {
+                            datapoints.push(0);
+                        }
+                    } else {
+                        datapoints.push(0);
+                    }
+                }
+                return {
+                    label: group,
+                    backgroundColor: colours[idx],
+                    data: datapoints,
+                }
+            });
+            return datasets;
+        } else if (scale === 'year') {
+            const groups = data.map((entry) => { return imageNameMap[entry.image]; }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
             groups.sort();
             const datasets = groups.map((group: string, idx: number) => {
                 const datapoints = [];
@@ -316,11 +403,22 @@
     }
 
     function chartClick(ev) {
-        if (get(scale) === 'year') {
+        if (get(scale) === 'everything') {
+            const years = get(data).reduce((acc, cur) => {
+                if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
+                    acc.push({value: cur.year, label: cur.year.toString()});
+                }
+                return acc;
+            }, []);
+            years.sort((a, b) => {
+                return a.value - b.value;
+            });
+            scale.set('year');
+            scaleFilter.set(years[ev.detail.index].value);
+        } else if (get(scale) === 'year') {
             const newFilter = get(scaleFilter) + '.' + (ev.detail.index + 1);
             scale.set('month');
             scaleFilter.set(newFilter);
-
         } else if (get(scale) === 'month') {
             const newFilter = get(scaleFilter) + '.' + (ev.detail.index + 1);
             scale.set('day');
@@ -334,35 +432,38 @@
 <div class="w-full h-full flex flex-col overflow-hidden">
     <nav class="flex-0 mb-2">
         <ul class="flex flex-row items-center">
-            <li>
+            <li class="mr-6">
                 <select bind:value={$scale} class="px-2 py-1">
+                    <option value="everything">Everything</option>
                     <option value="year">Year</option>
                     <option value="month">Month</option>
                     <option value="day">Day</option>
                 </select>
             </li>
+            {#if $scaleFilters.length > 0}
+                <li>
+                    <button on:click={() => { if ($scale === 'year') { scaleFilterNext(); } else { scaleFilterPrev(); }}} class="block px-3 py-1">
+                        <svg viewBox="0 0 24 24" class="block w-4 h-4">
+                            <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
+                        </svg>
+                    </button>
+                </li>
+                <li>
+                    <select bind:value={$scaleFilter} class="px-2 py-1">
+                        {#each $scaleFilters as entry}
+                            <option value={entry.value}>{entry.label}</option>
+                        {/each}
+                    </select>
+                </li>
+                <li>
+                    <button on:click={() => { if ($scale === 'year') { scaleFilterPrev(); } else { scaleFilterNext(); }}} class="block px-3 py-1">
+                        <svg viewBox="0 0 24 24" class="block w-4 h-4">
+                            <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
+                        </svg>
+                    </button>
+                </li>
+            {/if}
             <li class="ml-6">
-                <button on:click={() => { if ($scale === 'year') { scaleFilterNext(); } else { scaleFilterPrev(); }}} class="block px-3 py-1">
-                    <svg viewBox="0 0 24 24" class="block w-4 h-4">
-                        <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
-                    </svg>
-                </button>
-            </li>
-            <li>
-                <select bind:value={$scaleFilter} class="px-2 py-1">
-                    {#each $scaleFilters as entry}
-                        <option value={entry.value}>{entry.label}</option>
-                    {/each}
-                </select>
-            </li>
-            <li class="mr-6">
-                <button on:click={() => { if ($scale === 'year') { scaleFilterPrev(); } else { scaleFilterNext(); }}} class="block px-3 py-1">
-                    <svg viewBox="0 0 24 24" class="block w-4 h-4">
-                        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
-                    </svg>
-                </button>
-            </li>
-            <li>
                 <select bind:value={$metric} class="px-2 py-1">
                     <option value="session-counts">Session Counts</option>
                     <option value="unique-users">Unique Users</option>
