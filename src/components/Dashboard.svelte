@@ -57,10 +57,13 @@
         if (scale === 'year') {
             const filters = data.reduce((acc, cur) => {
                 if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
-                    acc.push({value: cur.year, label: cur.year});
+                    acc.push({value: cur.year, label: cur.year.toString()});
                 }
                 return acc;
             }, []);
+            filters.sort((a, b) => {
+                return b.value - a.value;
+            });
             if (filters.length > 0) {
                 scaleFilter.set(filters[0].value);
             }
@@ -339,7 +342,7 @@
                 </select>
             </li>
             <li class="ml-6">
-                <button on:click={scaleFilterPrev} class="block px-3 py-1">
+                <button on:click={() => { if ($scale === 'year') { scaleFilterNext(); } else { scaleFilterPrev(); }}} class="block px-3 py-1">
                     <svg viewBox="0 0 24 24" class="block w-4 h-4">
                         <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
                     </svg>
@@ -353,7 +356,7 @@
                 </select>
             </li>
             <li class="mr-6">
-                <button on:click={scaleFilterNext} class="block px-3 py-1">
+                <button on:click={() => { if ($scale === 'year') { scaleFilterPrev(); } else { scaleFilterNext(); }}} class="block px-3 py-1">
                     <svg viewBox="0 0 24 24" class="block w-4 h-4">
                         <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
                     </svg>
