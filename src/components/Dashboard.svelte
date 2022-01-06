@@ -16,11 +16,12 @@
         'mmh352/tm129-robotics:21j.0': 'TM129 Robotics 21J',
         'mmh352/s397-21j:latest': 'S397 21J',
     }
-    const colours = [
-        '#0e56a7',
-        '#e21481',
-        '#068293',
-    ]
+    const colours = {
+        'TT284 21J B1': '#0e56a7',
+        'TT284 21J B2': '#326fb4',
+        'TM129 Robotics 21J': '#068293',
+        'S397 21J': '#e21481',
+    }
     const monthLabels = {
         1: 'January',
         2: 'Feburary',
@@ -35,24 +36,43 @@
         11: 'November',
         12: 'December'
     }
+    const presentations = [
+        {
+            label: '21J',
+            months: [
+                [2021, 9],
+                [2021, 10],
+                [2021, 11],
+                [2021, 12],
+                [2022, 1],
+                [2022, 2],
+                [2022, 3],
+                [2022, 4],
+                [2022, 5],
+                [2022, 6]
+            ]
+        }
+    ]
 
     const data = writable([]);
-    const scale = writable('year');
+    const scale = writable('everything');
     const scaleFilter = writable('');
     const metric = writable('session-counts');
 
-    const labels = derived([data, scale], ([data, scale]) => {
+    const labels = derived([scale, scaleFilter], ([scale, scaleFilter]) => {
         if (scale === 'everything') {
-            const years = data.reduce((acc, cur) => {
-                if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
-                    acc.push({value: cur.year, label: cur.year.toString()});
-                }
-                return acc;
-            }, []);
-            years.sort((a, b) => {
-                return a.value - b.value;
+            return presentations.map((presentation) => {
+                return presentation.label;
             });
-            return years.map((year) => { return year.label; });
+        } else if (scale === 'presentation') {
+            for (let presentation of presentations) {
+                if (presentation.label === scaleFilter) {
+                    return presentation.months.map((month) => {
+                        return monthLabels[month[1]] + ' ' + month[0];
+                    })
+                }
+            }
+            return [];
         } else if (scale === 'year') {
             return ['January', 'Feburary', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         } else if (scale === 'month') {
@@ -65,7 +85,15 @@
     });
 
     const scaleFilters = derived([data, scale], ([data, scale]) => {
-        if (scale === 'year') {
+        if (scale === 'presentation') {
+            const filters = presentations.map((presentation) => {
+                return {value: presentation.label, label: presentation.label};
+            });
+            if (filters.length > 0) {
+                scaleFilter.set(filters[0].value);
+            }
+            return filters
+        } else if (scale === 'year') {
             const filters = data.reduce((acc, cur) => {
                 if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
                     acc.push({value: cur.year, label: cur.year.toString()});
@@ -106,6 +134,62 @@
         }
     });
 
+    function createDataPoint(datapoints, data, metric: string, group: string, constraint) {
+        if (metric === 'session-counts') {
+            datapoints.push(data.reduce((acc, cur) => {
+                if (constraint(cur) && imageNameMap[cur.image] === group && cur.continued === false) {
+                    acc = acc + 1;
+                }
+                return acc;
+            }, 0));
+        } else if (metric === 'unique-users') {
+            datapoints.push(data.reduce((acc, cur) => {
+                if (constraint(cur) && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
+                    acc.push(cur.user);
+                }
+                return acc;
+            }, []).length);
+        } else if (metric === 'median-session-lengths') {
+            const tmp = {}
+            const lengths = data.reduce((acc, cur) => {
+                if (constraint(cur) && imageNameMap[cur.image] === group) {
+                    if (!cur.continued) {
+                        if (tmp[cur.user]) {
+                            acc.push(tmp[cur.user] + cur.duration);
+                            delete tmp[cur.user];
+                        } else {
+                            acc.push(cur.duration);
+                        }
+                    } else {
+                        if (tmp[cur.user]) {
+                            tmp[cur.user] = tmp[cur.user] + cur.duration;
+                        } else {
+                            tmp[cur.user] = cur.duration;
+                        }
+                    }
+                }
+                return acc;
+            }, []);
+            if (Object.values(tmp).length > 0) {
+                for (const value in Object.values(tmp)) {
+                    lengths.push(value);
+                }
+            }
+            if (lengths.length > 0) {
+                lengths.sort((a: number, b: number) => { return a - b; });
+                if (lengths.length % 2 === 0) {
+                    datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
+                } else {
+                    datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
+                }
+            } else {
+                datapoints.push(0);
+            }
+        } else {
+            datapoints.push(0);
+        }
+    }
+
     const datasets = derived([data, scale, scaleFilter, metric], ([data, scale, scaleFilter, metric]) => {
         if (scale === 'everything') {
             const groups = data.map((entry) => {
@@ -115,75 +199,40 @@
                 return imageNameMap[entry.image];
             }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
             groups.sort();
-            const years = data.reduce((acc, cur) => {
-                if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
-                    acc.push({value: cur.year, label: cur.year.toString()});
-                }
-                return acc;
-            }, []);
-            years.sort((a, b) => {
-                return a.value - b.value;
-            });
-            const datasets = groups.map((group: string, idx: number) => {
+            const datasets = groups.map((group: string) => {
                 const datapoints = [];
-                for (let year of years) {
-                    if (metric === 'session-counts') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (year.value === cur.year && imageNameMap[cur.image] === group && cur.continued === false) {
-                                acc = acc + 1;
-                            }
-                            return acc;
-                        }, 0));
-                    } else if (metric === 'unique-users') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (year.value === cur.year && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
-                                acc.push(cur.user);
-                            }
-                            return acc;
-                        }, []).length);
-                    } else if (metric === 'median-session-lengths') {
-                        const tmp = {}
-                        const lengths = data.reduce((acc, cur) => {
-                            if (year.value === cur.year && imageNameMap[cur.image] === group) {
-                                if (!cur.continued) {
-                                    if (tmp[cur.user]) {
-                                        acc.push(tmp[cur.user] + cur.duration);
-                                        delete tmp[cur.user];
-                                    } else {
-                                        acc.push(cur.duration);
-                                    }
-                                } else {
-                                    if (tmp[cur.user]) {
-                                        tmp[cur.user] = tmp[cur.user] + cur.duration;
-                                    } else {
-                                        tmp[cur.user] = cur.duration;
-                                    }
-                                }
-                            }
-                            return acc;
-                        }, []);
-                        if (Object.values(tmp).length > 0) {
-                            for (const value in Object.values(tmp)) {
-                                lengths.push(value);
-                            }
-                        }
-                        if (lengths.length > 0) {
-                            lengths.sort((a: number, b: number) => { return a - b; });
-                            if (lengths.length % 2 === 0) {
-                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
-                            } else {
-                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
-                            }
-                        } else {
-                            datapoints.push(0);
-                        }
-                    } else {
-                        datapoints.push(0);
-                    }
+                for (let presentation of presentations) {
+                    createDataPoint(datapoints, data, metric, group, (cur) => {
+                        const matches = presentation.months.filter((presentationMonth) => { return presentationMonth[0] === cur.year && presentationMonth[1] === cur.month});
+                        return matches.length > 0;
+                    });
                 }
                 return {
                     label: group,
-                    backgroundColor: colours[idx],
+                    backgroundColor: colours[group],
+                    data: datapoints,
+                }
+            });
+            return datasets;
+        } else if (scale === 'presentation') {
+            const groups = data.map((entry) => {
+                if (!imageNameMap[entry.image]) {
+                    console.error('Missing image ' + entry.image);
+                }
+                return imageNameMap[entry.image];
+            }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            groups.sort();
+            const presentation = presentations.filter((presentation) => { return presentation.label === scaleFilter})[0];
+            const datasets = groups.map((group: string) => {
+                const datapoints = [];
+                for (let presentationMonth of presentation.months) {
+                    createDataPoint(datapoints, data, metric, group, (cur) => {
+                        return presentationMonth[0] === cur.year && presentationMonth[1] === cur.month;
+                    });
+                }
+                return {
+                    label: group,
+                    backgroundColor: colours[group],
                     data: datapoints,
                 }
             });
@@ -191,66 +240,16 @@
         } else if (scale === 'year') {
             const groups = data.map((entry) => { return imageNameMap[entry.image]; }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
             groups.sort();
-            const datasets = groups.map((group: string, idx: number) => {
+            const datasets = groups.map((group: string) => {
                 const datapoints = [];
                 for (let month = 1; month <= 12; month++) {
-                    if (metric === 'session-counts') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group && cur.continued === false) {
-                                acc = acc + 1;
-                            }
-                            return acc;
-                        }, 0));
-                    } else if (metric === 'unique-users') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
-                                acc.push(cur.user);
-                            }
-                            return acc;
-                        }, []).length);
-                    } else if (metric === 'median-session-lengths') {
-                        const tmp = {}
-                        const lengths = data.reduce((acc, cur) => {
-                            if (scaleFilter === cur.year && cur.month === month && imageNameMap[cur.image] === group) {
-                                if (!cur.continued) {
-                                    if (tmp[cur.user]) {
-                                        acc.push(tmp[cur.user] + cur.duration);
-                                        delete tmp[cur.user];
-                                    } else {
-                                        acc.push(cur.duration);
-                                    }
-                                } else {
-                                    if (tmp[cur.user]) {
-                                        tmp[cur.user] = tmp[cur.user] + cur.duration;
-                                    } else {
-                                        tmp[cur.user] = cur.duration;
-                                    }
-                                }
-                            }
-                            return acc;
-                        }, []);
-                        if (Object.values(tmp).length > 0) {
-                            for (const value in Object.values(tmp)) {
-                                lengths.push(value);
-                            }
-                        }
-                        if (lengths.length > 0) {
-                            lengths.sort((a: number, b: number) => { return a - b; });
-                            if (lengths.length % 2 === 0) {
-                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
-                            } else {
-                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
-                            }
-                        } else {
-                            datapoints.push(0);
-                        }
-                    } else {
-                        datapoints.push(0);
-                    }
+                    createDataPoint(datapoints, data, metric, group, (cur) => {
+                        return scaleFilter === cur.year && cur.month === month;
+                    });
                 }
                 return {
                     label: group,
-                    backgroundColor: colours[idx],
+                    backgroundColor: colours[group],
                     data: datapoints,
                 }
             });
@@ -260,66 +259,16 @@
             groups.sort();
             const filterYear = Number.parseInt(scaleFilter.substring(0, scaleFilter.indexOf('.')));
             const filterMonth = Number.parseInt(scaleFilter.substring(scaleFilter.indexOf('.') + 1));
-            const datasets = groups.map((group: string, idx: number) => {
+            const datasets = groups.map((group: string) => {
                 const datapoints = [];
                 for (let day = 1; day <= 31; day++) {
-                    if (metric === 'session-counts') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (filterYear === cur.year && filterMonth == cur.month && cur.day === day && imageNameMap[cur.image] === group && cur.continued === false) {
-                                acc = acc + 1;
-                            }
-                            return acc;
-                        }, 0));
-                    } else if (metric === 'unique-users') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (filterYear === cur.year && filterMonth === cur.month && cur.day === day && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
-                                acc.push(cur.user);
-                            }
-                            return acc;
-                        }, []).length);
-                    } else if (metric === 'median-session-lengths') {
-                        const tmp = {}
-                        const lengths = data.reduce((acc, cur) => {
-                            if (filterYear === cur.year && filterMonth === cur.month && cur.day === day && imageNameMap[cur.image] === group) {
-                                if (!cur.continued) {
-                                    if (tmp[cur.user]) {
-                                        acc.push(tmp[cur.user] + cur.duration);
-                                        delete tmp[cur.user];
-                                    } else {
-                                        acc.push(cur.duration);
-                                    }
-                                } else {
-                                    if (tmp[cur.user]) {
-                                        tmp[cur.user] = tmp[cur.user] + cur.duration;
-                                    } else {
-                                        tmp[cur.user] = cur.duration;
-                                    }
-                                }
-                            }
-                            return acc;
-                        }, []);
-                        if (Object.values(tmp).length > 0) {
-                            for (const value in Object.values(tmp)) {
-                                lengths.push(value);
-                            }
-                        }
-                        if (lengths.length > 0) {
-                            lengths.sort((a: number, b: number) => { return a - b; });
-                            if (lengths.length % 2 === 0) {
-                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
-                            } else {
-                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
-                            }
-                        } else {
-                            datapoints.push(0);
-                        }
-                    } else {
-                        datapoints.push(0);
-                    }
+                    createDataPoint(datapoints, data, metric, group, (cur) => {
+                        return filterYear === cur.year && filterMonth == cur.month && cur.day === day;
+                    });
                 }
                 return {
                     label: group,
-                    backgroundColor: colours[idx],
+                    backgroundColor: colours[group],
                     data: datapoints,
                 }
             });
@@ -331,47 +280,16 @@
             const tmp = scaleFilter.substring(scaleFilter.indexOf('.') + 1);
             const filterMonth = Number.parseInt(tmp.substring(0, tmp.indexOf('.')));
             const filterDay = Number.parseInt(tmp.substring(tmp.indexOf('.') + 1));
-            const datasets = groups.map((group: string, idx: number) => {
+            const datasets = groups.map((group: string) => {
                 const datapoints = [];
                 for (let hour = 0; hour <= 23; hour++) {
-                    if (metric === 'session-counts') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (filterYear === cur.year && filterMonth == cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group) {
-                                acc = acc + 1;
-                            }
-                            return acc;
-                        }, 0));
-                    } else if (metric === 'unique-users') {
-                        datapoints.push(data.reduce((acc, cur) => {
-                            if (filterYear === cur.year && filterMonth === cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
-                                acc.push(cur.user);
-                            }
-                            return acc;
-                        }, []).length);
-                    } else if (metric === 'median-session-lengths') {
-                        const lengths = data.reduce((acc, cur) => {
-                            if (filterYear === cur.year && filterMonth === cur.month && filterDay === cur.day && cur.hour === hour && imageNameMap[cur.image] === group) {
-                                acc.push(cur.duration);
-                            }
-                            return acc;
-                        }, []);
-                        if (lengths.length > 0) {
-                            lengths.sort((a: number, b: number) => { return a - b; });
-                            if (lengths.length % 2 === 0) {
-                                datapoints.push(Math.floor((lengths[Math.floor(lengths.length / 2)] + lengths[Math.ceil(lengths.length / 2)]) / 120));
-                            } else {
-                                datapoints.push(Math.floor(lengths[Math.floor(lengths.length / 2)] / 60));
-                            }
-                        } else {
-                            datapoints.push(0);
-                        }
-                    } else {
-                        datapoints.push(0);
-                    }
+                    createDataPoint(datapoints, data, metric, group, (cur) => {
+                        return filterYear === cur.year && filterMonth == cur.month && filterDay === cur.day && cur.hour === hour;
+                    });
                 }
                 return {
                     label: group,
-                    backgroundColor: colours[idx],
+                    backgroundColor: colours[group],
                     data: datapoints,
                 }
             });
@@ -404,17 +322,12 @@
 
     function chartClick(ev) {
         if (get(scale) === 'everything') {
-            const years = get(data).reduce((acc, cur) => {
-                if (acc.map((val) => { return val.value }).indexOf(cur.year) < 0) {
-                    acc.push({value: cur.year, label: cur.year.toString()});
-                }
-                return acc;
-            }, []);
-            years.sort((a, b) => {
-                return a.value - b.value;
-            });
-            scale.set('year');
-            scaleFilter.set(years[ev.detail.index].value);
+            scale.set('presentation');
+            scaleFilter.set(presentations[ev.detail.index].label);
+        } else if (get(scale) === 'presentation') {
+            const presentation = presentations.filter((presentation) => { return presentation.label === get(scaleFilter)})[0];
+            scale.set('month');
+            scaleFilter.set(presentation.months[ev.detail.index][0] + '.' + presentation.months[ev.detail.index][1]);
         } else if (get(scale) === 'year') {
             const newFilter = get(scaleFilter) + '.' + (ev.detail.index + 1);
             scale.set('month');
@@ -435,6 +348,7 @@
             <li class="mr-6">
                 <select bind:value={$scale} class="px-2 py-1">
                     <option value="everything">Everything</option>
+                    <option value="presentation">Presentation</option>
                     <option value="year">Year</option>
                     <option value="month">Month</option>
                     <option value="day">Day</option>
