@@ -18,6 +18,8 @@
         'mmh352/tm129-robotics:21j.0-b6': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0': 'TM129 Robotics 21J',
         'mmh352/s397-21j:latest': 'S397 21J',
+        'mmh352/s397-21j:1': 'S397 21J',
+        'mmh352/s397-21j:2': 'S397 21J',
     }
     const colours = {
         'TT284 21J B1': '#0e56a7',
