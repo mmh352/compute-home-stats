@@ -17,6 +17,8 @@
         'mmh352/tm129-robotics:21j.0-b5': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0-b6': 'TM129 Robotics 21J',
         'mmh352/tm129-robotics:21j.0': 'TM129 Robotics 21J',
+        'mmh352/tm129-robotics': 'TM129 Robotics 21J',
+        'mmh352/tm129-robotics:22b.0': 'TM129 Robotics 22B',
         'mmh352/s397-21j:latest': 'S397 21J',
         'mmh352/s397-21j:1': 'S397 21J',
         'mmh352/s397-21j:2': 'S397 21J',
