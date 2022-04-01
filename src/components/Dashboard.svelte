@@ -28,6 +28,7 @@
         'TT284 21J B2': '#326fb4',
         'TT284 21J B3': '#5689c1',
         'TM129 Robotics 21J': '#068293',
+        'TM129 Robotics 22B': '#2b95a3',
         'S397 21J': '#e21481',
     }
     const monthLabels = {
