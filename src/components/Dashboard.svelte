@@ -3,32 +3,32 @@
     import Chart from './Chart.svelte';
 
     const imageNameMap = {
-        'mmh352/tt284-block1:21j.1': 'TT284 21J B1',
-        'mmh352/tt284-block1:21j.2': 'TT284 21J B1',
-        'mmh352/tt284-block1:21j.3': 'TT284 21J B1',
-        'mmh352/tt284-block1:21j.4': 'TT284 21J B1',
-        'mmh352/tt284-block2:21j.3-b0': 'TT284 21J B2',
-        'mmh352/tt284-block2:21j.3': 'TT284 21J B2',
-        'mmh352/tt284-block2:21j.4': 'TT284 21J B2',
-        'mmh352/tt284-block3:21j.4': 'TT284 21J B3',
-        'mmh352/tm129-robotics:21j.0-b2': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics:21j.0-b3': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics:21j.0-b4': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics:21j.0-b5': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics:21j.0-b6': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics:21j.0': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics': 'TM129 Robotics 21J',
-        'mmh352/tm129-robotics:22b.0': 'TM129 Robotics 22B',
-        'mmh352/s397-21j:latest': 'S397 21J',
-        'mmh352/s397-21j:1': 'S397 21J',
-        'mmh352/s397-21j:2': 'S397 21J',
+        'mmh352/tt284-block1:21j.1': ['TT284 21J B1', '21J'],
+        'mmh352/tt284-block1:21j.2': ['TT284 21J B1', '21J'],
+        'mmh352/tt284-block1:21j.3': ['TT284 21J B1', '21J'],
+        'mmh352/tt284-block1:21j.4': ['TT284 21J B1', '21J'],
+        'mmh352/tt284-block2:21j.3-b0': ['TT284 21J B2', '21J'],
+        'mmh352/tt284-block2:21j.3': ['TT284 21J B2', '21J'],
+        'mmh352/tt284-block2:21j.4': ['TT284 21J B2', '21J'],
+        'mmh352/tt284-block3:21j.4': ['TT284 21J B3', '21J'],
+        'mmh352/tm129-robotics:21j.0-b2': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics:21j.0-b3': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics:21j.0-b4': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics:21j.0-b5': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics:21j.0-b6': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics:21j.0': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics': ['TM129 21J Robotics', '21J'],
+        'mmh352/tm129-robotics:22b.0': ['TM129 22B Robotics', '22B'],
+        'mmh352/s397-21j:latest': ['S397 21J', '21J'],
+        'mmh352/s397-21j:1': ['S397 21J', '21J'],
+        'mmh352/s397-21j:2': ['S397 21J', '21J'],
     }
     const colours = {
         'TT284 21J B1': '#0e56a7',
         'TT284 21J B2': '#326fb4',
         'TT284 21J B3': '#5689c1',
-        'TM129 Robotics 21J': '#068293',
-        'TM129 Robotics 22B': '#2b95a3',
+        'TM129 21J Robotics': '#068293',
+        'TM129 22B Robotics': '#2b95a3',
         'S397 21J': '#e21481',
     }
     const monthLabels = {
@@ -59,6 +59,21 @@
                 [2022, 4],
                 [2022, 5],
                 [2022, 6]
+            ]
+        },
+        {
+            label: '22B',
+            months: [
+                [2022, 1],
+                [2022, 2],
+                [2022, 3],
+                [2022, 4],
+                [2022, 5],
+                [2022, 6],
+                [2022, 7],
+                [2022, 8],
+                [2022, 9],
+                [2022, 10],
             ]
         }
     ]
@@ -146,14 +161,14 @@
     function createDataPoint(datapoints, data, metric: string, group: string, constraint) {
         if (metric === 'session-counts') {
             datapoints.push(data.reduce((acc, cur) => {
-                if (constraint(cur) && imageNameMap[cur.image] === group && cur.continued === false) {
+                if (constraint(cur) && imageNameMap[cur.image][0] === group && cur.continued === false) {
                     acc = acc + 1;
                 }
                 return acc;
             }, 0));
         } else if (metric === 'unique-users') {
             datapoints.push(data.reduce((acc, cur) => {
-                if (constraint(cur) && imageNameMap[cur.image] === group && acc.indexOf(cur.user) < 0) {
+                if (constraint(cur) && imageNameMap[cur.image][0] === group && acc.indexOf(cur.user) < 0) {
                     acc.push(cur.user);
                 }
                 return acc;
@@ -161,7 +176,7 @@
         } else if (metric === 'median-session-lengths') {
             const tmp = {}
             const lengths = data.reduce((acc, cur) => {
-                if (constraint(cur) && imageNameMap[cur.image] === group) {
+                if (constraint(cur) && imageNameMap[cur.image][0] === group) {
                     if (!cur.continued) {
                         if (tmp[cur.user]) {
                             acc.push(tmp[cur.user] + cur.duration);
@@ -201,19 +216,25 @@
 
     const datasets = derived([data, scale, scaleFilter, metric], ([data, scale, scaleFilter, metric]) => {
         if (scale === 'everything') {
-            const groups = data.map((entry) => {
+            const groups = data.filter((entry) => {
                 if (!imageNameMap[entry.image]) {
                     console.error('Missing image ' + entry.image);
                 }
                 return imageNameMap[entry.image];
-            }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            }).map((entry) => {
+                return imageNameMap[entry.image][0];
+            }).reduce((acc, cur) => {
+                if (acc.indexOf(cur) < 0) {
+                    acc.push(cur);
+                }
+                return acc;
+            }, []);
             groups.sort();
             const datasets = groups.map((group: string) => {
                 const datapoints = [];
                 for (let presentation of presentations) {
                     createDataPoint(datapoints, data, metric, group, (cur) => {
-                        const matches = presentation.months.filter((presentationMonth) => { return presentationMonth[0] === cur.year && presentationMonth[1] === cur.month});
-                        return matches.length > 0;
+                        return imageNameMap[cur.image][1] === presentation.label;
                     });
                 }
                 return {
@@ -224,14 +245,21 @@
             });
             return datasets;
         } else if (scale === 'presentation') {
-            const groups = data.map((entry) => {
+            const presentation = presentations.filter((presentation) => { return presentation.label === scaleFilter})[0];
+            const groups = data.filter((entry) => {
                 if (!imageNameMap[entry.image]) {
                     console.error('Missing image ' + entry.image);
                 }
-                return imageNameMap[entry.image];
-            }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+                return imageNameMap[entry.image] && imageNameMap[entry.image][1] === presentation.label;
+            }).map((entry) => {
+                return imageNameMap[entry.image][0];
+            }).reduce((acc, cur) => {
+                if (acc.indexOf(cur) < 0) {
+                    acc.push(cur);
+                }
+                return acc;
+            }, []);
             groups.sort();
-            const presentation = presentations.filter((presentation) => { return presentation.label === scaleFilter})[0];
             const datasets = groups.map((group: string) => {
                 const datapoints = [];
                 for (let presentationMonth of presentation.months) {
@@ -247,7 +275,19 @@
             });
             return datasets;
         } else if (scale === 'year') {
-            const groups = data.map((entry) => { return imageNameMap[entry.image]; }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            const groups = data.filter((entry) => {
+                if (!imageNameMap[entry.image]) {
+                    console.error('Missing image ' + entry.image);
+                }
+                return imageNameMap[entry.image];
+            }).map((entry) => {
+                return imageNameMap[entry.image][0];
+            }).reduce((acc, cur) => {
+                if (acc.indexOf(cur) < 0) {
+                    acc.push(cur);
+                }
+                return acc;
+            }, []);
             groups.sort();
             const datasets = groups.map((group: string) => {
                 const datapoints = [];
@@ -264,7 +304,19 @@
             });
             return datasets;
         } else if (scale === 'month') {
-            const groups = data.map((entry) => { return imageNameMap[entry.image] }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            const groups = data.filter((entry) => {
+                if (!imageNameMap[entry.image]) {
+                    console.error('Missing image ' + entry.image);
+                }
+                return imageNameMap[entry.image];
+            }).map((entry) => {
+                return imageNameMap[entry.image][0];
+            }).reduce((acc, cur) => {
+                if (acc.indexOf(cur) < 0) {
+                    acc.push(cur);
+                }
+                return acc;
+            }, []);
             groups.sort();
             const filterYear = Number.parseInt(scaleFilter.substring(0, scaleFilter.indexOf('.')));
             const filterMonth = Number.parseInt(scaleFilter.substring(scaleFilter.indexOf('.') + 1));
@@ -283,7 +335,19 @@
             });
             return datasets;
         } else if (scale === 'day') {
-            const groups = data.map((entry) => { return imageNameMap[entry.image] }).reduce((acc, cur) => { if (acc.indexOf(cur) < 0) { acc.push(cur); } return acc; }, []);
+            const groups = data.filter((entry) => {
+                if (!imageNameMap[entry.image]) {
+                    console.error('Missing image ' + entry.image);
+                }
+                return imageNameMap[entry.image];
+            }).map((entry) => {
+                return imageNameMap[entry.image][0];
+            }).reduce((acc, cur) => {
+                if (acc.indexOf(cur) < 0) {
+                    acc.push(cur);
+                }
+                return acc;
+            }, []);
             groups.sort();
             const filterYear = Number.parseInt(scaleFilter.substring(0, scaleFilter.indexOf('.')));
             const tmp = scaleFilter.substring(scaleFilter.indexOf('.') + 1);
