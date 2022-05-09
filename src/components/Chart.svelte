@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { Chart, registerables } from 'chart.js';
-import { validate_each_argument } from 'svelte/internal';
 
     Chart.register(...registerables);
 
